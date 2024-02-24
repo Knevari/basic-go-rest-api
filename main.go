@@ -4,14 +4,22 @@ import (
 	"net/http"
 	"strconv"
 
+	"errors"
+
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type game struct {
 	Id int `json:"id"`
-	Title string `json:"title"`
-	Genre string `json:"genre"`
-	Rating float32 `json:"rating"`
+	Title string `json:"title" binding:"required,max=128,min=2"`
+	Genre string `json:"genre" binding:"required"`
+	Rating float32 `json:"rating" binding:"required,min=1,max=5"`
+}
+
+type ErrorMsg struct {
+	Field string `json:"field"`
+	Message   string `json:"message"`
 }
 
 var games = []game {
@@ -45,10 +53,21 @@ func postGame(c *gin.Context) {
 	var newGame game;
 
 	if err := c.BindJSON(&newGame); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		var ve validator.ValidationErrors
+
+		if errors.As(err, &ve) {
+			out := make([]ErrorMsg, len(ve))
+			for i, fe := range ve {
+				out[i] = ErrorMsg{fe.Field(), getErrorMsg(fe)}
+			}
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{ "errors": out })
+		}
+
 		return
 	}
 
+	newGame.Id = len(games) + 1
+	
 	games = append(games, newGame)
 	c.IndentedJSON(http.StatusCreated, games)
 }
@@ -61,4 +80,17 @@ func main() {
 	router.POST("/games", postGame)
 
 	router.Run("localhost:8080")
+}
+
+func getErrorMsg(fe validator.FieldError) string {
+	switch fe.Tag() {
+	case "required":
+		return "This field is required"
+	case "min":
+		return "Should be greater than " + fe.Param()
+	case "max":
+		return "Should be less than " + fe.Param()
+	}
+
+	return "Unkown error"
 }
