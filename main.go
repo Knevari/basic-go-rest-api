@@ -41,11 +41,24 @@ func getGameById(c *gin.Context) {
 	c.IndentedJSON(http.StatusNotFound, gin.H{ "message": "game not found" })
 }
 
+func postGame(c *gin.Context) {
+	var newGame game;
+
+	if err := c.BindJSON(&newGame); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	games = append(games, newGame)
+	c.IndentedJSON(http.StatusCreated, games)
+}
+
 func main() {
 	router := gin.Default()
 
 	router.GET("/games", getGames)
 	router.GET("/games/:id", getGameById)
+	router.POST("/games", postGame)
 
 	router.Run("localhost:8080")
 }
