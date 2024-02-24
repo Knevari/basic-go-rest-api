@@ -2,12 +2,13 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type game struct {
-	Id int64 `json:"id"`
+	Id int `json:"id"`
 	Title string `json:"title"`
 	Genre string `json:"genre"`
 	Rating float32 `json:"rating"`
@@ -23,10 +24,28 @@ func getGames(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, games);
 }
 
+func getGameById(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{ "message": "invalid id" })
+	}
+	
+	for _, game := range games {
+		if game.Id == id {
+			c.IndentedJSON(http.StatusOK, game)
+			return
+		}
+	}
+
+	c.IndentedJSON(http.StatusNotFound, gin.H{ "message": "game not found" })
+}
+
 func main() {
 	router := gin.Default()
 
 	router.GET("/games", getGames)
+	router.GET("/games/:id", getGameById)
 
 	router.Run("localhost:8080")
 }
